@@ -23,6 +23,9 @@ st.markdown("""
     div.stButton > button[kind="primary"]:hover { background-color: #1E40AF; }
     div[data-testid="metric-container"] { background-color: #FFFFFF; border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 4px solid #1E3A8A; }
     div[data-testid="stMetricLabel"] { color: #64748B; font-weight: 500; font-size: 13px; }
+    /* Ẩn drag-drop zone của file uploader, chỉ hiện nút Browse */
+    [data-testid="stFileUploaderDropzone"] { display: none !important; }
+    [data-testid="stFileUploader"] section { padding: 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -121,9 +124,9 @@ if menu == "Home":
                 m = st.session_state['train_metrics']
                 st.success("✅ Completed!")
 
-                # ── GRID PHÂN TÍCH: Dự đoán từng sinh viên ──
-                st.subheader("📋 Grid Phân Tích Kết Quả Toàn Bộ Sinh Viên")
-                st.caption("Bảng tổng hợp dự báo điểm số và nguy cơ rớt môn cho từng sinh viên. Nhấn nút bên dưới để tải về Excel.")
+                # ── ANALYSIS GRID ──
+                st.subheader("📋 Student Performance Analysis Grid")
+                st.caption("AI-powered grade predictions and pass/fail risk assessment for every student. Download as Excel below.")
                 grid_rows = []
                 for _, row_data in df_agg.iterrows():
                     sid = row_data['student_id']
@@ -134,25 +137,25 @@ if menu == "Home":
                         score_dist = res.get('Score_Distribution', {})
                         actual = row_data.get('final_exam_score', None)
                         grid_rows.append({
-                            'Mã SV': sid,
-                            'Điểm Dự Báo': res['Predicted_Score'],
-                            'Xác Suất ±0.5': f"{res['Score_Probability']*100:.1f}%",
-                            'Phân Loại': res['Prediction_Status'],
-                            'Độ Tự Tin': f"{res['Status_Probability']*100:.1f}%",
-                            'Nhóm (K-Means)': res['Cluster'],
-                            'XS Đạt ≥ 5.0': f"{score_dist.get('>= 5.0',0)*100:.0f}%",
-                            'XS Đạt ≥ 7.0': f"{score_dist.get('>= 7.0',0)*100:.0f}%",
-                            'XS Đạt ≥ 8.0': f"{score_dist.get('>= 8.0',0)*100:.0f}%",
+                            'Student ID': sid,
+                            'Predicted Score': res['Predicted_Score'],
+                            'Score Prob. (±0.5)': f"{res['Score_Probability']*100:.1f}%",
+                            'Classification': res['Prediction_Status'],
+                            'Confidence': f"{res['Status_Probability']*100:.1f}%",
+                            'K-Means Cluster': res['Cluster'],
+                            'Prob. ≥ 5.0': f"{score_dist.get('>= 5.0',0)*100:.0f}%",
+                            'Prob. ≥ 7.0': f"{score_dist.get('>= 7.0',0)*100:.0f}%",
+                            'Prob. ≥ 8.0': f"{score_dist.get('>= 8.0',0)*100:.0f}%",
                         })
                     except Exception:
-                        grid_rows.append({'Mã SV': sid, 'Điểm Dự Báo': 'Lỗi'})
+                        grid_rows.append({'Student ID': sid, 'Predicted Score': 'Error'})
 
                 df_grid = pd.DataFrame(grid_rows)
                 st.session_state['df_grid'] = df_grid
 
                 # Highlight Pass/Fail
                 def highlight_status(row):
-                    color = '#DCFCE7' if row.get('Phân Loại','') == 'Pass' else '#FEE2E2'
+                    color = '#DCFCE7' if row.get('Classification','') == 'Pass' else '#FEE2E2'
                     return [f'background-color:{color}'] * len(row)
                 st.dataframe(df_grid.style.apply(highlight_status, axis=1),
                              use_container_width=True, height=400)
@@ -290,13 +293,36 @@ elif menu == "Student Details":
             st.markdown(f"""
             <div style="background:#fff;padding:24px;border-radius:12px;border-left:6px solid {accent};box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:16px">
                 <h3 style="margin:0;color:{accent}">{icon} Prediction: {res['Prediction_Status'].upper()} &nbsp;|&nbsp; Predicted Score: <b>{res['Predicted_Score']}/10</b></h3>
-                <p style="margin:8px 0 0;color:#475569">Score Probability (±0.5 margin): <b>{res['Score_Probability']*100:.1f}%</b> &nbsp;·&nbsp;
-                   Pass/Fail Confidence: <b>{res['Status_Probability']*100:.1f}%</b> &nbsp;·&nbsp;
-                   AI Cluster Profile: <b>{res.get('Cluster','N/A')}</b></p>
             </div>
             """, unsafe_allow_html=True)
 
-            # ── 2. PHÂN PHỐI XÁC SUẤT ĐIỂM ──
+            # ── AI ADVISOR (right below Prediction Results) ──
+            if st.button("✨ Cố vấn bằng AI", type="primary", use_container_width=False):
+                import os
+                api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
+                if not api_key:
+                    st.error("🔑 Vui lòng điền GEMINI_API_KEY trong file secrets.toml")
+                else:
+                    prompt = predictor.generate_explanation_prompt(
+                        stud_id, row, res['Predicted_Score'], res['Score_Probability'],
+                        res['Prediction_Status'], res['Status_Probability'],
+                        res['FeatureImportance'], res.get('Cluster', 'N/A')
+                    )
+                    with st.spinner("AI đang phân tích..."):
+                        try:
+                            from google import genai
+                            client = genai.Client(api_key=api_key)
+                            response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+                            st.success("✅ Phân tích xong!")
+                            st.code(response.text, language="markdown")
+                        except Exception:
+                            try:
+                                response = client.models.generate_content(model='gemini-2.0-flash-exp', contents=prompt)
+                                st.success("✅ Phân tích xong!")
+                                st.code(response.text, language="markdown")
+                            except Exception as e2:
+                                st.error(f"Lỗi AI: {e2}")
+
             st.subheader("2. 📈 Score Probability Distribution")
             st.caption("Over 100 decision trees voted to calculate the chance of reaching score thresholds.")
             c_dist1, c_dist2 = st.columns([2, 1])
@@ -322,39 +348,6 @@ elif menu == "Student Details":
                   <p style="margin:4px 0 0;font-size:0.9em">Probability ≥ 5.0: <b>{p50:.0f}%</b></p>
                   <p style="margin:4px 0 0;font-size:0.9em">Probability ≥ 7.0: <b>{p70:.0f}%</b></p>
                 </div>""", unsafe_allow_html=True)
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("✨ Cố vấn bằng AI", type="secondary", use_container_width=True):
-                    import os, json, urllib.request
-                    api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
-                    if not api_key: st.error("🔑 Vui lòng điền GEMINI_API_KEY trong file secrets.toml")
-                    else:
-                        prompt = predictor.generate_explanation_prompt(
-                            stud_id, row, res['Predicted_Score'], res['Score_Probability'], 
-                            res['Prediction_Status'], res['Status_Probability'], 
-                            res['FeatureImportance'], res.get('Cluster', 'N/A')
-                        )
-                        with st.spinner("AI đang soạn lời khuyên..."):
-                            try:
-                                from google import genai
-                                client = genai.Client(api_key=api_key)
-                                response = client.models.generate_content(
-                                    model='gemini-2.5-flash',
-                                    contents=prompt
-                                )
-                                st.success("✅ Cố vấn AI đã phân tích xong!")
-                                st.code(response.text, language="markdown")
-                            except Exception as e1:
-                                try:
-                                    # Fallback to older model versions if 2.5 isn't available
-                                    response = client.models.generate_content(
-                                        model='gemini-2.0-flash-exp',
-                                        contents=prompt
-                                    )
-                                    st.success("✅ Cố vấn AI đã phân tích xong!")
-                                    st.code(response.text, language="markdown")
-                                except Exception as e2:
-                                    st.error(f"Lỗi gọi AI (model không tồn tại hoặc API key hết hạn): {e2}")
 
             st.markdown("<br>", unsafe_allow_html=True)
 
