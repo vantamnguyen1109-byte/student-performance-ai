@@ -23,9 +23,9 @@ st.markdown("""
     div.stButton > button[kind="primary"]:hover { background-color: #1E40AF; }
     div[data-testid="metric-container"] { background-color: #FFFFFF; border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 4px solid #1E3A8A; }
     div[data-testid="stMetricLabel"] { color: #64748B; font-weight: 500; font-size: 13px; }
-    /* Ẩn drag-drop zone của file uploader, chỉ hiện nút Browse */
-    [data-testid="stFileUploaderDropzone"] { display: none !important; }
-    [data-testid="stFileUploader"] section { padding: 0 !important; }
+    /* Ẩn instructions drag-drop, giữ lại nút Browse files */
+    [data-testid="stFileUploaderDropzoneInstructions"] { display: none !important; }
+    [data-testid="stFileUploaderDropzone"] { border: none !important; padding: 0 !important; background: transparent !important; }
 </style>
 """, unsafe_allow_html=True)
 
