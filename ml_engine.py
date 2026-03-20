@@ -607,34 +607,22 @@ class StudentPerformancePredictor:
 
         behavior_data = "\n".join([f"- {k}: {v:.2f}" if isinstance(v, float) else f"- {k}: {v}" for k, v in aggregated_dict.items() if k not in ['student_id', 'pass_fail', 'final_exam_score']])
 
-        prompt = f"""
-# VAI TRÒ
-Bạn là một Chuyên gia Cố vấn Học tập (Academic Advisor) giàu kinh nghiệm tại trường Đại học. Nhiệm vụ của bạn là đọc các chỉ số từ hệ thống AI Machine Learning và viết một báo cáo ngắn gọn, thuyết phục để tư vấn cho Giảng viên về tình trạng của sinh viên này.
+        prompt = f"""You are an Academic Advisor. Based on the ML system's output below, write a concise advisory report for the lecturer. Use Markdown formatting.
 
-# THÔNG TIN SINH VIÊN
-- Mã sinh viên: {student_id}
-- Tình trạng dự đoán: {status} (với độ tự tin {status_prob*100:.1f}%)
-- Điểm cuối kỳ dự đoán: {predicted_score}/10
+**Student:** {student_id} | **Prediction:** {status} ({status_prob*100:.1f}% confidence) | **Predicted Score:** {predicted_score}/10
 
-# DỮ LIỆU HÀNH VI TRÊN LMS (Tuần hiện tại)
+**LMS Behavior Data:**
 {behavior_data}
 
-# CÁC YẾU TỐ QUYẾT ĐỊNH (Từ mô hình Machine Learning)
-Đây là các chỉ số ảnh hưởng lớn nhất đến kết quả của sinh viên này (sắp xếp từ cao xuống thấp):
+**Top Predictive Factors (ML model):**
 {top_features}
 
-# YÊU CẦU LẬP LUẬN VÀ TRÌNH BÀY
-Dựa TẤT CẢ các thông tin trên, hãy viết một báo cáo phân tích theo cấu trúc sau (Sử dụng Markdown để in đậm, in nghiêng cho đẹp mắt):
+**Write a short report with exactly 3 sections:**
+1. 🎯 **Overall Assessment** (1-2 sentences on risk/potential level)
+2. 🔍 **Root Cause Analysis** (cite specific numbers from behavior data and match to top factors)
+3. 💡 **Recommended Actions** (2-3 concrete interventions for the lecturer)
 
-1. 🎯 **Nhận định tổng quan:** Đánh giá nhanh về mức độ rủi ro hoặc tiềm năng của sinh viên (1-2 câu).
-2. 🔍 **Phân tích nguyên nhân cốt lõi:** Lập luận TẠI SAO mô hình lại dự đoán kết quả như vậy. **BẮT BUỘC** phải trích dẫn các chỉ số trong phần "Dữ liệu hành vi" và đối chiếu với "Các yếu tố quyết định" để giải thích. (Ví dụ: "Mô hình dự đoán em rớt chủ yếu do Điểm Quiz trung bình chỉ đạt 4.5, trong khi đây là yếu tố quan trọng số 1 quyết định kết quả môn học...").
-3. 💡 **Đề xuất hành động cho Giảng viên:** Đưa ra 2-3 hành động cụ thể, thực tế để giảng viên can thiệp (Ví dụ: Gửi email nhắc nhở làm bài, gợi ý tài liệu đọc thêm, hẹn gặp 1-1).
-
-# RÀNG BUỘC NGHIÊM NGẶT
-- KHÔNG bịa đặt thêm dữ liệu. Chỉ sử dụng các con số được cung cấp.
-- Giọng văn: Chuyên nghiệp, khách quan, thấu cảm và mang tính xây dựng.
-- Trình bày trực tiếp vào nội dung, không cần chào hỏi kiểu "Chào bạn, đây là báo cáo...".
-"""
+Rules: Only use provided numbers. No greeting. Professional, empathetic tone. Vietnamese language."""
         return prompt.strip()
 
 

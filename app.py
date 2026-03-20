@@ -297,31 +297,32 @@ elif menu == "Student Details":
             """, unsafe_allow_html=True)
 
             # ── AI ADVISOR (right below Prediction Results) ──
-            if st.button("✨ Cố vấn bằng AI", type="primary", use_container_width=False):
+            if st.button("🔍 Analyze with AI", type="primary", use_container_width=False):
                 import os
                 api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
                 if not api_key:
-                    st.error("🔑 Vui lòng điền GEMINI_API_KEY trong file secrets.toml")
+                    st.error("🔑 Please add GEMINI_API_KEY to secrets.toml")
                 else:
                     prompt = predictor.generate_explanation_prompt(
                         stud_id, row, res['Predicted_Score'], res['Score_Probability'],
                         res['Prediction_Status'], res['Status_Probability'],
                         res['FeatureImportance'], res.get('Cluster', 'N/A')
                     )
-                    with st.spinner("AI đang phân tích..."):
+                    with st.spinner("AI is analyzing..."):
                         try:
                             from google import genai
                             client = genai.Client(api_key=api_key)
                             response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
-                            st.success("✅ Phân tích xong!")
-                            st.code(response.text, language="markdown")
+                            st.success("✅ Analysis complete!")
+                            st.markdown(response.text)
                         except Exception:
                             try:
                                 response = client.models.generate_content(model='gemini-2.0-flash-exp', contents=prompt)
-                                st.success("✅ Phân tích xong!")
-                                st.code(response.text, language="markdown")
+                                st.success("✅ Analysis complete!")
+                                st.markdown(response.text)
                             except Exception as e2:
-                                st.error(f"Lỗi AI: {e2}")
+                                st.error(f"AI Error: {e2}")
+
 
             st.subheader("2. 📈 Score Probability Distribution")
             st.caption("Over 100 decision trees voted to calculate the chance of reaching score thresholds.")
